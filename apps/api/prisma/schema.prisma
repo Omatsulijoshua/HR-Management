@@ -130,6 +130,31 @@ enum PayrollRunStatus {
   DISBURSED
 }
 
+enum BenefitType {
+  HEALTH_INSURANCE
+  DENTAL
+  VISION
+  LIFE_INSURANCE
+  RETIREMENT_SAVINGS
+  WELLNESS
+  MEAL_VOUCHER
+  TRANSPORT
+}
+
+enum EnrollmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum CompensationReviewStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
 // Platform Level Entities
 model PlatformUser {
   id           String       @id @default(uuid())
@@ -197,6 +222,10 @@ model Organization {
   salaryStructures          SalaryStructure[]
   payrollPeriods            PayrollPeriod[]
   payrollRuns               PayrollRun[]
+  benefitPlans              BenefitPlan[]
+  employeeBenefitEnrollments EmployeeBenefitEnrollment[]
+  compensationReviews       CompensationReview[]
+  bonusAllocations          BonusAllocation[]
   employeeDocuments         EmployeeDocument[]
   employeeHistories         EmployeeHistory[]
   auditLogs                 AuditLog[]
@@ -458,6 +487,9 @@ model Employee {
   onboardingProcesses   EmployeeOnboardingProcess[]
   salaryAssignments     EmployeeSalaryAssignment[]
   payrollEntries        PayrollEntry[]
+  benefitEnrollments    EmployeeBenefitEnrollment[]
+  compensationReviews   CompensationReview[]
+  bonusAllocations      BonusAllocation[]
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -1187,4 +1219,103 @@ model PayslipLineItem {
 
   @@index([payrollEntryId])
   @@map("payslip_line_items")
+}
+
+// Phase 8: Benefits & Compensation Entities
+model BenefitPlan {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  code           String
+  type           BenefitType
+  provider       String?
+  description    String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  options     BenefitOption[]
+  enrollments EmployeeBenefitEnrollment[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("benefit_plans")
+}
+
+model BenefitOption {
+  id                  String      @id @default(uuid())
+  benefitPlanId       String
+  benefitPlan         BenefitPlan @relation(fields: [benefitPlanId], references: [id], onDelete: Cascade)
+  name                String
+  coverageTier        String
+  employeeContribution Float       @default(0)
+  employerContribution Float       @default(0)
+  createdAt           DateTime    @default(now())
+
+  enrollments EmployeeBenefitEnrollment[]
+
+  @@index([benefitPlanId])
+  @@map("benefit_options")
+}
+
+model EmployeeBenefitEnrollment {
+  id              String           @id @default(uuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  benefitPlanId   String
+  benefitPlan     BenefitPlan      @relation(fields: [benefitPlanId], references: [id], onDelete: Cascade)
+  benefitOptionId String
+  benefitOption   BenefitOption    @relation(fields: [benefitOptionId], references: [id], onDelete: Cascade)
+  status          EnrollmentStatus @default(PENDING)
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("employee_benefit_enrollments")
+}
+
+model CompensationReview {
+  id                String                   @id @default(uuid())
+  organizationId    String
+  organization      Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId        String
+  employee          Employee                 @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewTitle       String
+  currentSalary     Float
+  proposedSalary    Float
+  percentageIncrease Float                   @default(0)
+  reason            String?
+  status            CompensationReviewStatus @default(DRAFT)
+  approvedByUserId  String?
+  effectiveDate     DateTime
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("compensation_reviews")
+}
+
+model BonusAllocation {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  bonusTitle     String
+  amount         Float
+  reason         String?
+  isPaid         Boolean      @default(false)
+  paidAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("bonus_allocations")
 }

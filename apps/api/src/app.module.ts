@@ -12,6 +12,8 @@ import { LeaveModule } from './leave/leave.module';
 import { RecruitmentModule } from './recruitment/recruitment.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { PayrollModule } from './payroll/payroll.module';
+import { BenefitsModule } from './benefits/benefits.module';
+import { CompensationModule } from './compensation/compensation.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -37,6 +39,8 @@ import { HealthModule } from './health/health.module';
     RecruitmentModule,
     OnboardingModule,
     PayrollModule,
+    BenefitsModule,
+    CompensationModule,
     HealthModule,
   ],
 })
