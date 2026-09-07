@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -11,6 +12,9 @@ async function bootstrap() {
 
   const apiPrefix = process.env.API_PREFIX || '/api/v1';
   const port = process.env.PORT || 4000;
+
+  // Security Middleware
+  app.use(helmet());
 
   // Set global prefix (e.g. /api/v1)
   const normalizedPrefix = apiPrefix.startsWith('/') ? apiPrefix.substring(1) : apiPrefix;

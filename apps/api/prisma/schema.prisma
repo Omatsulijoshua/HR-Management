@@ -1,4 +1,4 @@
-// Prisma Schema for Multi-Tenant HR Management & HCM SaaS Platform
+// Prisma Schema for Multi-Tenant HR Management & HCM SaaS Platform (Phase 2 - Auth & Security)
 
 datasource db {
   provider = "postgresql"
@@ -63,9 +63,10 @@ model Organization {
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
-  users     User[]
-  roles     Role[]
-  auditLogs AuditLog[]
+  users        User[]
+  roles        Role[]
+  auditLogs    AuditLog[]
+  sessions     Session[]
 
   @@map("organizations")
 }
@@ -110,26 +111,105 @@ model RolePermission {
 }
 
 model User {
-  id             String     @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  roleId         String?
-  role           Role?      @relation(fields: [roleId], references: [id], onDelete: SetNull)
-  email          String
-  passwordHash   String
-  firstName      String
-  lastName       String
-  status         UserStatus @default(PENDING)
-  avatarUrl      String?
-  lastLoginAt    DateTime?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id                  String     @id @default(uuid())
+  organizationId      String
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleId              String?
+  role                Role?      @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  email               String
+  passwordHash        String
+  firstName           String
+  lastName            String
+  phoneNumber         String?
+  status              UserStatus @default(PENDING)
+  avatarUrl           String?
+  isEmailVerified     Boolean    @default(false)
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
-  auditLogs AuditLog[]
+  auditLogs              AuditLog[]
+  sessions               Session[]
+  refreshTokens          RefreshToken[]
+  passwordResetTokens    PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  mfaConfiguration       MFAConfiguration?
 
   @@unique([organizationId, email])
   @@index([organizationId])
   @@map("users")
+}
+
+model Session {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token          String       @unique
+  ipAddress      String?
+  userAgent      String?
+  isRevoked      Boolean      @default(false)
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+
+  @@index([userId])
+  @@index([organizationId])
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  isRevoked Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  isUsed    Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  isUsed    Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model MFAConfiguration {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isEnabled Boolean  @default(false)
+  secret    String?
+  type      String   @default("TOTP")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("mfa_configurations")
 }
 
 model AuditLog {
