@@ -17,6 +17,9 @@ import { CompensationModule } from './compensation/compensation.module';
 import { PerformanceModule } from './performance/performance.module';
 import { TrainingModule } from './training/training.module';
 import { SkillsModule } from './skills/skills.module';
+import { CareerModule } from './career/career.module';
+import { SuccessionModule } from './succession/succession.module';
+import { MobilityModule } from './mobility/mobility.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -47,6 +50,9 @@ import { HealthModule } from './health/health.module';
     PerformanceModule,
     TrainingModule,
     SkillsModule,
+    CareerModule,
+    SuccessionModule,
+    MobilityModule,
     HealthModule,
   ],
 })

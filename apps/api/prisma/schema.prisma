@@ -282,6 +282,9 @@ model Organization {
   trainingCourses           TrainingCourse[]
   trainingEnrollments       TrainingEnrollment[]
   skills                    Skill[]
+  careerPaths               CareerPath[]
+  successionPlans           SuccessionPlan[]
+  mobilityRequests          InternalMobilityRequest[]
   employeeDocuments         EmployeeDocument[]
   employeeHistories         EmployeeHistory[]
   auditLogs                 AuditLog[]
@@ -330,6 +333,7 @@ model Department {
   jobPositions JobPosition[]
   employees    Employee[]
   jobPostings  JobPosting[]
+  careerPaths  CareerPath[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -416,6 +420,8 @@ model JobPosition {
 
   employees         Employee[]
   skillRequirements SkillRequirement[]
+  successionPlans   SuccessionPlan[]
+  mobilityRequests  InternalMobilityRequest[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -552,6 +558,8 @@ model Employee {
   reviewerEvaluations   PerformanceReview[] @relation("ReviewerEvaluations")
   trainingEnrollments   TrainingEnrollment[]
   skills                EmployeeSkill[]
+  successionCandidates  SuccessionCandidate[]
+  mobilityRequests      InternalMobilityRequest[] @relation("EmployeeMobilityRequests")
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -1569,3 +1577,105 @@ model SkillRequirement {
   @@unique([jobPositionId, skillId])
   @@map("skill_requirements")
 }
+
+// Phase 11: Career Development, Succession Planning & Internal Mobility Entities
+enum ReadinessLevel {
+  EMERGENCY_BACKUP
+  READY_NOW
+  READY_1_2_YEARS
+  READY_3_PLUS_YEARS
+}
+
+enum RiskOfLoss {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ImpactOfLoss {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum MobilityRequestStatus {
+  SUBMITTED
+  MANAGER_APPROVED
+  HR_APPROVED
+  REJECTED
+  COMPLETED
+}
+
+model CareerPath {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  code           String
+  departmentId   String?
+  department     Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  description    String?
+  levelSequence  Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("career_paths")
+}
+
+model SuccessionPlan {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  jobPositionId  String
+  jobPosition    JobPosition  @relation(fields: [jobPositionId], references: [id], onDelete: Cascade)
+  riskOfLoss     RiskOfLoss   @default(MEDIUM)
+  impactOfLoss   ImpactOfLoss @default(HIGH)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  candidates SuccessionCandidate[]
+
+  @@unique([organizationId, jobPositionId])
+  @@index([organizationId])
+  @@map("succession_plans")
+}
+
+model SuccessionCandidate {
+  id               String         @id @default(uuid())
+  successionPlanId String
+  successionPlan   SuccessionPlan @relation(fields: [successionPlanId], references: [id], onDelete: Cascade)
+  candidateId      String
+  candidate        Employee       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  readinessLevel   ReadinessLevel @default(READY_1_2_YEARS)
+  notes            String?
+  createdAt        DateTime       @default(now())
+
+  @@unique([successionPlanId, candidateId])
+  @@map("succession_candidates")
+}
+
+model InternalMobilityRequest {
+  id               String                @id @default(uuid())
+  organizationId   String
+  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         Employee              @relation("EmployeeMobilityRequests", fields: [employeeId], references: [id], onDelete: Cascade)
+  targetPositionId String
+  targetPosition   JobPosition           @relation(fields: [targetPositionId], references: [id], onDelete: Cascade)
+  reason           String
+  status           MobilityRequestStatus @default(SUBMITTED)
+  managerReview    String?
+  hrReview         String?
+  submittedAt      DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("internal_mobility_requests")
+}
+
