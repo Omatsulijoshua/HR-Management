@@ -288,6 +288,8 @@ model Organization {
   surveys                   EngagementSurvey[]
   surveyResponses           SurveyResponse[]
   anonymousFeedbacks        AnonymousFeedback[]
+  managerDelegations        ManagerDelegation[]
+  oneOnOneMeetings          OneOnOneMeeting[]
   employeeDocuments         EmployeeDocument[]
   employeeHistories         EmployeeHistory[]
   auditLogs                 AuditLog[]
@@ -563,6 +565,10 @@ model Employee {
   skills                EmployeeSkill[]
   successionCandidates  SuccessionCandidate[]
   mobilityRequests      InternalMobilityRequest[] @relation("EmployeeMobilityRequests")
+  givenDelegations      ManagerDelegation[] @relation("ManagerDelegations")
+  receivedDelegations   ManagerDelegation[] @relation("DelegateDelegations")
+  managerMeetings       OneOnOneMeeting[] @relation("ManagerMeetings")
+  employeeMeetings      OneOnOneMeeting[] @relation("EmployeeMeetings")
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -1779,5 +1785,61 @@ model AnonymousFeedback {
   @@index([organizationId])
   @@map("anonymous_feedbacks")
 }
+
+// Phase 13: Employee Self-Service (ESS) & Manager Self-Service (MSS) Entities
+enum DelegationStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+model ManagerDelegation {
+  id             String           @id @default(uuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  managerId      String
+  manager        Employee         @relation("ManagerDelegations", fields: [managerId], references: [id], onDelete: Cascade)
+  delegateId     String
+  delegate       Employee         @relation("DelegateDelegations", fields: [delegateId], references: [id], onDelete: Cascade)
+  startDate      DateTime
+  endDate        DateTime
+  status         DelegationStatus @default(ACTIVE)
+  reason         String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([organizationId])
+  @@index([managerId])
+  @@map("manager_delegations")
+}
+
+model OneOnOneMeeting {
+  id             String        @id @default(uuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  managerId      String
+  manager        Employee      @relation("ManagerMeetings", fields: [managerId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee      @relation("EmployeeMeetings", fields: [employeeId], references: [id], onDelete: Cascade)
+  title          String
+  scheduledAt    DateTime
+  status         MeetingStatus @default(SCHEDULED)
+  agenda         String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId])
+  @@index([managerId])
+  @@index([employeeId])
+  @@map("one_on_one_meetings")
+}
+
 
 

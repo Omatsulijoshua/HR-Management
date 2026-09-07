@@ -22,6 +22,8 @@ import { SuccessionModule } from './succession/succession.module';
 import { MobilityModule } from './mobility/mobility.module';
 import { SurveysModule } from './surveys/surveys.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { EssModule } from './ess/ess.module';
+import { MssModule } from './mss/mss.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -57,6 +59,8 @@ import { HealthModule } from './health/health.module';
     MobilityModule,
     SurveysModule,
     FeedbackModule,
+    EssModule,
+    MssModule,
     HealthModule,
   ],
 })
