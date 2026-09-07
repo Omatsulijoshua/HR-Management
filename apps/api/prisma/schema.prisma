@@ -290,6 +290,8 @@ model Organization {
   anonymousFeedbacks        AnonymousFeedback[]
   managerDelegations        ManagerDelegation[]
   oneOnOneMeetings          OneOnOneMeeting[]
+  companyAssets             CompanyAsset[]
+  assetRequests             AssetRequest[]
   employeeDocuments         EmployeeDocument[]
   employeeHistories         EmployeeHistory[]
   auditLogs                 AuditLog[]
@@ -569,6 +571,9 @@ model Employee {
   receivedDelegations   ManagerDelegation[] @relation("DelegateDelegations")
   managerMeetings       OneOnOneMeeting[] @relation("ManagerMeetings")
   employeeMeetings      OneOnOneMeeting[] @relation("EmployeeMeetings")
+  assignedAssets        CompanyAsset[]
+  assetAssignmentHistories AssetAssignmentHistory[]
+  requestedAssets       AssetRequest[] @relation("RequestedAssets")
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -1840,6 +1845,106 @@ model OneOnOneMeeting {
   @@index([employeeId])
   @@map("one_on_one_meetings")
 }
+
+// Phase 14: IT Logistics & Corporate Asset Management Entities
+enum AssetCategory {
+  LAPTOP
+  DESKTOP
+  MOBILE_DEVICE
+  MONITOR
+  SOFTWARE_LICENSE
+  PERIPHERAL
+  OTHER
+}
+
+enum AssetCondition {
+  NEW
+  EXCELLENT
+  GOOD
+  FAIR
+  REPAIR_REQUIRED
+  DECOMMISSIONED
+}
+
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  UNDER_MAINTENANCE
+  RETIRED
+  LOST
+}
+
+enum AssetRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FULFILLED
+}
+
+model CompanyAsset {
+  id             String         @id @default(uuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  assetTag       String
+  serialNumber   String?
+  category       AssetCategory  @default(LAPTOP)
+  condition      AssetCondition @default(GOOD)
+  status         AssetStatus    @default(AVAILABLE)
+  purchaseDate   DateTime?
+  purchaseCost   Float?         @default(0)
+  warrantyExpiry DateTime?
+  assignedToId   String?
+  assignedTo     Employee?      @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedDate   DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  histories AssetAssignmentHistory[]
+  requests  AssetRequest[]
+
+  @@unique([organizationId, assetTag])
+  @@index([organizationId])
+  @@index([assignedToId])
+  @@map("company_assets")
+}
+
+model AssetAssignmentHistory {
+  id                String          @id @default(uuid())
+  assetId           String
+  asset             CompanyAsset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  employeeId        String
+  employee          Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  assignedDate      DateTime        @default(now())
+  returnedDate      DateTime?
+  conditionOnReturn AssetCondition?
+  notes             String?
+  createdAt         DateTime        @default(now())
+
+  @@index([assetId])
+  @@index([employeeId])
+  @@map("asset_assignment_histories")
+}
+
+model AssetRequest {
+  id               String             @id @default(uuid())
+  organizationId   String
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestedById    String
+  requestedBy      Employee           @relation("RequestedAssets", fields: [requestedById], references: [id], onDelete: Cascade)
+  category         AssetCategory      @default(LAPTOP)
+  reason           String
+  status           AssetRequestStatus @default(PENDING)
+  fulfilledAssetId String?
+  fulfilledAsset   CompanyAsset?      @relation(fields: [fulfilledAssetId], references: [id], onDelete: SetNull)
+  requestedAt      DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([organizationId])
+  @@index([requestedById])
+  @@map("asset_requests")
+}
+
 
 
 

@@ -24,6 +24,7 @@ import { SurveysModule } from './surveys/surveys.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { EssModule } from './ess/ess.module';
 import { MssModule } from './mss/mss.module';
+import { AssetsModule } from './assets/assets.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -61,6 +62,7 @@ import { HealthModule } from './health/health.module';
     FeedbackModule,
     EssModule,
     MssModule,
+    AssetsModule,
     HealthModule,
   ],
 })
