@@ -27,6 +27,7 @@ import { MssModule } from './mss/mss.module';
 import { AssetsModule } from './assets/assets.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { ComplianceModule } from './compliance/compliance.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -67,6 +68,7 @@ import { HealthModule } from './health/health.module';
     AssetsModule,
     ExpensesModule,
     ComplianceModule,
+    AnalyticsModule,
     HealthModule,
   ],
 })
