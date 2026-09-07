@@ -1,0 +1,33 @@
+{
+  "name": "hr-management-saas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Modern Multi-Tenant HR Management & HCM SaaS Platform",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build:api": "npm run build --workspace=apps/api",
+    "build:web": "npm run build --workspace=apps/web",
+    "build": "npm run build:api && npm run build:web",
+    "test:api": "npm run test --workspace=apps/api",
+    "test:web": "npm run test --workspace=apps/web",
+    "test": "npm run test:api && npm run test:web",
+    "db:migrate": "npm run db:migrate --workspace=apps/api",
+    "db:generate": "npm run db:generate --workspace=apps/api",
+    "db:seed": "npm run db:seed --workspace=apps/api",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "keywords": [
+    "hrms",
+    "hcm",
+    "multi-tenant",
+    "saas",
+    "hr-management"
+  ],
+  "author": "",
+  "license": "MIT"
+}

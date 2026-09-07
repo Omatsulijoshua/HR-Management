@@ -1,0 +1,163 @@
+// Prisma Schema for Multi-Tenant HR Management & HCM SaaS Platform
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum PlatformRole {
+  SUPER_ADMIN
+  PLATFORM_ADMIN
+  SUPPORT_ADMIN
+  BILLING_ADMIN
+  PLATFORM_ANALYST
+}
+
+enum OrganizationStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+  EXPIRED
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+// Platform Level Entities
+model PlatformUser {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         PlatformRole @default(PLATFORM_ADMIN)
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("platform_users")
+}
+
+model Organization {
+  id           String             @id @default(uuid())
+  name         String
+  slug         String             @unique
+  domain       String?            @unique
+  logoUrl      String?
+  industry     String?
+  country      String             @default("Nigeria")
+  currency     String             @default("NGN")
+  timezone     String             @default("Africa/Lagos")
+  status       OrganizationStatus @default(ACTIVE)
+  maxEmployees Int                @default(50)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  users     User[]
+  roles     Role[]
+  auditLogs AuditLog[]
+
+  @@map("organizations")
+}
+
+model Role {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  isSystemRole   Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  permissions RolePermission[]
+  users       User[]
+
+  @@unique([organizationId, name])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique // e.g. "employees.view", "payroll.process"
+  module      String   // e.g. "employees", "payroll", "leave"
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id             String     @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleId         String?
+  role           Role?      @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  email          String
+  passwordHash   String
+  firstName      String
+  lastName       String
+  status         UserStatus @default(PENDING)
+  avatarUrl      String?
+  lastLoginAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  auditLogs AuditLog[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@map("users")
+}
+
+model AuditLog {
+  id             String        @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action         String
+  entity         String
+  entityId       String?
+  previousState  Json?
+  newState       Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model SystemHealth {
+  id        String   @id @default(uuid())
+  service   String
+  status    String
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@map("system_health")
+}
