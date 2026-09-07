@@ -292,6 +292,7 @@ model Organization {
   oneOnOneMeetings          OneOnOneMeeting[]
   companyAssets             CompanyAsset[]
   assetRequests             AssetRequest[]
+  expenseClaims             ExpenseClaim[]
   employeeDocuments         EmployeeDocument[]
   employeeHistories         EmployeeHistory[]
   auditLogs                 AuditLog[]
@@ -574,6 +575,7 @@ model Employee {
   assignedAssets        CompanyAsset[]
   assetAssignmentHistories AssetAssignmentHistory[]
   requestedAssets       AssetRequest[] @relation("RequestedAssets")
+  expenseClaims         ExpenseClaim[] @relation("EmployeeExpenseClaims")
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -1944,6 +1946,51 @@ model AssetRequest {
   @@index([requestedById])
   @@map("asset_requests")
 }
+
+// Phase 15: Expense Management & Financial Claims Workflow Entities
+enum ExpenseCategory {
+  TRAVEL
+  MEALS_ENTERTAINMENT
+  SUPPLIES
+  TRAINING_CERTIFICATION
+  UTILITIES
+  OTHER
+}
+
+enum ExpenseStatus {
+  SUBMITTED
+  MANAGER_APPROVED
+  FINANCE_APPROVED
+  DISBURSED
+  REJECTED
+}
+
+model ExpenseClaim {
+  id             String          @id @default(uuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  claimNumber    String
+  employeeId     String
+  employee       Employee        @relation("EmployeeExpenseClaims", fields: [employeeId], references: [id], onDelete: Cascade)
+  category       ExpenseCategory @default(SUPPLIES)
+  title          String
+  amount         Float
+  currency       String          @default("NGN")
+  receiptUrl     String?
+  description    String?
+  status         ExpenseStatus   @default(SUBMITTED)
+  managerNotes   String?
+  financeNotes   String?
+  disbursedAt    DateTime?
+  submittedAt    DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([organizationId, claimNumber])
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("expense_claims")
+}
+
 
 
 
