@@ -7,6 +7,8 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { EmployeesModule } from './employees/employees.module';
+import { AttendanceModule } from './attendance/attendance.module';
+import { LeaveModule } from './leave/leave.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -27,6 +29,8 @@ import { HealthModule } from './health/health.module';
     AuthModule,
     OrganizationsModule,
     EmployeesModule,
+    AttendanceModule,
+    LeaveModule,
     HealthModule,
   ],
 })

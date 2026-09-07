@@ -1,4 +1,4 @@
-// Prisma Schema for Multi-Tenant HR Management & HCM SaaS Platform (Phase 4 - Employee Management)
+// Prisma Schema for Multi-Tenant HR Management & HCM SaaS Platform (Phase 5 - Attendance & Leave)
 
 datasource db {
   provider = "postgresql"
@@ -54,6 +54,28 @@ enum MaritalStatus {
   WIDOWED
 }
 
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  EARLY_DEPARTURE
+  ABSENT
+  ON_LEAVE
+  HALF_DAY
+}
+
+enum CorrectionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 // Platform Level Entities
 model PlatformUser {
   id           String       @id @default(uuid())
@@ -91,22 +113,29 @@ model Organization {
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
-  users             User[]
-  roles             Role[]
-  branches          Branch[]
-  departments       Department[]
-  teams             Team[]
-  locations         Location[]
-  jobPositions      JobPosition[]
-  jobGrades         JobGrade[]
-  employmentTypes   EmploymentType[]
-  workSchedules     WorkSchedule[]
-  holidays          HolidayCalendar[]
-  employees         Employee[]
-  employeeDocuments EmployeeDocument[]
-  employeeHistories EmployeeHistory[]
-  auditLogs         AuditLog[]
-  sessions          Session[]
+  users                 User[]
+  roles                 Role[]
+  branches              Branch[]
+  departments           Department[]
+  teams                 Team[]
+  locations             Location[]
+  jobPositions          JobPosition[]
+  jobGrades             JobGrade[]
+  employmentTypes       EmploymentType[]
+  workSchedules         WorkSchedule[]
+  holidays              HolidayCalendar[]
+  employees             Employee[]
+  attendanceRecords     AttendanceRecord[]
+  overtimeRecords       OvertimeRecord[]
+  attendanceCorrections AttendanceCorrection[]
+  leaveTypes            LeaveType[]
+  leavePolicies         LeavePolicy[]
+  leaveBalances         LeaveBalance[]
+  leaveRequests         LeaveRequest[]
+  employeeDocuments     EmployeeDocument[]
+  employeeHistories     EmployeeHistory[]
+  auditLogs             AuditLog[]
+  sessions              Session[]
 
   @@map("organizations")
 }
@@ -250,7 +279,8 @@ model EmploymentType {
   isContract     Boolean      @default(false)
   createdAt      DateTime     @default(now())
 
-  employees Employee[]
+  employees     Employee[]
+  leavePolicies LeavePolicy[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -260,7 +290,7 @@ model EmploymentType {
 model WorkSchedule {
   id                   String       @id @default(uuid())
   organizationId       String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name                 String
   workDays             String[]
   startTime            String       @default("08:00")
@@ -290,7 +320,6 @@ model HolidayCalendar {
   @@map("holiday_calendars")
 }
 
-// Phase 4: Employee Entities
 model Employee {
   id                   String          @id @default(uuid())
   organizationId       String
@@ -313,7 +342,6 @@ model Employee {
   state                String?
   country              String          @default("Nigeria")
   
-  // Placements
   branchId             String?
   branch               Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
   departmentId         String?
@@ -334,13 +362,11 @@ model Employee {
   manager              Employee?       @relation("EmployeeReporting", fields: [managerId], references: [id], onDelete: SetNull)
   directReports        Employee[]      @relation("EmployeeReporting")
 
-  // Dates & Status
   hireDate             DateTime
   confirmationDate     DateTime?
   probationEndDate     DateTime?
   status               EmployeeStatus  @default(PROBATION)
 
-  // Financial & Bank Details
   basicSalary          Float           @default(0)
   bankName             String?
   accountNumber        String?
@@ -352,10 +378,15 @@ model Employee {
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
-  emergencyContacts    EmergencyContact[]
-  documents            EmployeeDocument[]
-  histories            EmployeeHistory[]
-  statusHistories      EmployeeStatusHistory[]
+  emergencyContacts     EmergencyContact[]
+  documents             EmployeeDocument[]
+  histories             EmployeeHistory[]
+  statusHistories       EmployeeStatusHistory[]
+  attendanceRecords     AttendanceRecord[]
+  overtimeRecords       OvertimeRecord[]
+  attendanceCorrections AttendanceCorrection[]
+  leaveBalances         LeaveBalance[]
+  leaveRequests         LeaveRequest[]
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -364,6 +395,160 @@ model Employee {
   @@index([branchId])
   @@index([status])
   @@map("employees")
+}
+
+// Phase 5: Attendance Models
+model AttendanceRecord {
+  id             String           @id @default(uuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date           DateTime
+  clockIn        DateTime
+  clockOut       DateTime?
+  totalHours     Float            @default(0)
+  breakMinutes   Int              @default(60)
+  status         AttendanceStatus @default(PRESENT)
+  ipAddress      String?
+  userAgent      String?
+  latitude       Float?
+  longitude      Float?
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  corrections AttendanceCorrection[]
+
+  @@unique([employeeId, date])
+  @@index([organizationId])
+  @@index([employeeId])
+  @@index([date])
+  @@map("attendance_records")
+}
+
+model OvertimeRecord {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date           DateTime
+  hours          Float
+  reason         String?
+  isApproved     Boolean      @default(false)
+  approvedByUserId String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("overtime_records")
+}
+
+model AttendanceCorrection {
+  id                 String           @id @default(uuid())
+  organizationId     String
+  organization       Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId         String
+  employee           Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendanceRecordId String?
+  attendanceRecord   AttendanceRecord? @relation(fields: [attendanceRecordId], references: [id], onDelete: SetNull)
+  requestedClockIn   DateTime
+  requestedClockOut  DateTime
+  reason             String
+  status             CorrectionStatus @default(PENDING)
+  reviewedByUserId   String?
+  reviewNotes        String?
+  createdAt          DateTime         @default(now())
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("attendance_corrections")
+}
+
+// Phase 5: Leave Models
+model LeaveType {
+  id               String       @id @default(uuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name             String       // e.g. Annual Leave, Sick Leave, Maternity
+  code             String
+  defaultDays      Int          @default(20)
+  isPaid           Boolean      @default(true)
+  requiresApproval Boolean      @default(true)
+  colorCode        String?      @default("#3B82F6")
+  createdAt        DateTime     @default(now())
+
+  policies      LeavePolicy[]
+  leaveBalances LeaveBalance[]
+  leaveRequests LeaveRequest[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("leave_types")
+}
+
+model LeavePolicy {
+  id                 String          @id @default(uuid())
+  organizationId     String
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leaveTypeId        String
+  leaveType          LeaveType       @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  employmentTypeId   String?
+  employmentType     EmploymentType? @relation(fields: [employmentTypeId], references: [id], onDelete: SetNull)
+  maxDaysPerYear     Int             @default(20)
+  carryOverDays      Int             @default(5)
+  noticeDaysRequired Int             @default(3)
+  createdAt          DateTime        @default(now())
+
+  @@index([organizationId])
+  @@map("leave_policies")
+}
+
+model LeaveBalance {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId    String
+  leaveType      LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  year           Int
+  totalDays      Float        @default(20)
+  usedDays       Float        @default(0)
+  pendingDays    Float        @default(0)
+  remainingDays  Float        @default(20)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([employeeId, leaveTypeId, year])
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("leave_balances")
+}
+
+model LeaveRequest {
+  id               String             @id @default(uuid())
+  organizationId   String
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId      String
+  leaveType        LeaveType          @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  startDate        DateTime
+  endDate          DateTime
+  totalDays        Float
+  reason           String
+  status           LeaveRequestStatus @default(PENDING)
+  reviewedByUserId String?
+  reviewNotes      String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@index([status])
+  @@map("leave_requests")
 }
 
 model EmergencyContact {
@@ -389,7 +574,7 @@ model EmployeeDocument {
   employeeId     String
   employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   title          String
-  category       String       // e.g. Contract, Certificate, ID, Passport, Tax
+  category       String
   fileUrl        String
   fileType       String?
   fileSize       Int?
@@ -407,7 +592,7 @@ model EmployeeHistory {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   employeeId     String
   employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  eventType      String       // e.g. HIRE, PROMOTION, SALARY_UPDATE, DEPT_TRANSFER, STATUS_CHANGE
+  eventType      String
   description    String
   previousData   Json?
   newData        Json?
