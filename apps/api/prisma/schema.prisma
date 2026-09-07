@@ -155,6 +155,33 @@ enum CompensationReviewStatus {
   REJECTED
 }
 
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  ON_TRACK
+  AT_RISK
+  COMPLETED
+}
+
+enum GoalCategory {
+  INDIVIDUAL
+  DEPARTMENTAL
+  ORGANIZATIONAL
+}
+
+enum ReviewCycleStatus {
+  DRAFT
+  ACTIVE
+  EVALUATION_PERIOD
+  CLOSED
+}
+
+enum EvaluationStatus {
+  SELF_EVALUATION_PENDING
+  MANAGER_EVALUATION_PENDING
+  COMPLETED
+}
+
 // Platform Level Entities
 model PlatformUser {
   id           String       @id @default(uuid())
@@ -226,6 +253,9 @@ model Organization {
   employeeBenefitEnrollments EmployeeBenefitEnrollment[]
   compensationReviews       CompensationReview[]
   bonusAllocations          BonusAllocation[]
+  goals                     Goal[]
+  performanceReviewCycles   PerformanceReviewCycle[]
+  performanceReviews        PerformanceReview[]
   employeeDocuments         EmployeeDocument[]
   employeeHistories         EmployeeHistory[]
   auditLogs                 AuditLog[]
@@ -490,6 +520,9 @@ model Employee {
   benefitEnrollments    EmployeeBenefitEnrollment[]
   compensationReviews   CompensationReview[]
   bonusAllocations      BonusAllocation[]
+  goals                 Goal[]
+  performanceReviews    PerformanceReview[] @relation("EmployeeReviews")
+  reviewerEvaluations   PerformanceReview[] @relation("ReviewerEvaluations")
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -1318,4 +1351,103 @@ model BonusAllocation {
   @@index([organizationId])
   @@index([employeeId])
   @@map("bonus_allocations")
+}
+
+// Phase 9: Performance Management & Goal Entities
+model Goal {
+  id                 String       @id @default(uuid())
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId         String?
+  employee           Employee?    @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  title              String
+  description        String?
+  category           GoalCategory @default(INDIVIDUAL)
+  status             GoalStatus   @default(NOT_STARTED)
+  progressPercentage Float        @default(0)
+  startDate          DateTime
+  targetDate         DateTime
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  keyResults GoalKeyResult[]
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("goals")
+}
+
+model GoalKeyResult {
+  id           String   @id @default(uuid())
+  goalId       String
+  goal         Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  title        String
+  initialValue Float    @default(0)
+  currentValue Float    @default(0)
+  targetValue  Float
+  unit         String   @default("%")
+  weight       Float    @default(1.0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([goalId])
+  @@map("goal_key_results")
+}
+
+model PerformanceReviewCycle {
+  id             String            @id @default(uuid())
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  startDate      DateTime
+  endDate        DateTime
+  status         ReviewCycleStatus @default(DRAFT)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  reviews PerformanceReview[]
+
+  @@index([organizationId])
+  @@map("performance_review_cycles")
+}
+
+model PerformanceReview {
+  id               String                 @id @default(uuid())
+  organizationId   String
+  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cycleId          String
+  cycle            PerformanceReviewCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         Employee               @relation("EmployeeReviews", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewerId       String?
+  reviewer         Employee?              @relation("ReviewerEvaluations", fields: [reviewerId], references: [id], onDelete: SetNull)
+  selfRating       Float?                 @default(0)
+  managerRating    Float?                 @default(0)
+  finalRating      Float?                 @default(0)
+  selfFeedback     String?
+  managerFeedback  String?
+  status           EvaluationStatus       @default(SELF_EVALUATION_PENDING)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  feedback360 Feedback360[]
+
+  @@index([organizationId])
+  @@index([cycleId])
+  @@index([employeeId])
+  @@map("performance_reviews")
+}
+
+model Feedback360 {
+  id                  String            @id @default(uuid())
+  performanceReviewId String
+  performanceReview   PerformanceReview @relation(fields: [performanceReviewId], references: [id], onDelete: Cascade)
+  peerName            String
+  peerRole            String?
+  rating              Float             @default(0)
+  comments            String?
+  createdAt           DateTime          @default(now())
+
+  @@index([performanceReviewId])
+  @@map("feedback_360")
 }
