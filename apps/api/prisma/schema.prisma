@@ -1,4 +1,4 @@
-// Prisma Schema for Multi-Tenant HR Management & HCM SaaS Platform (Phase 3 - Multi-Tenancy & Org Setup)
+// Prisma Schema for Multi-Tenant HR Management & HCM SaaS Platform (Phase 4 - Employee Management)
 
 datasource db {
   provider = "postgresql"
@@ -31,6 +31,27 @@ enum UserStatus {
   ACTIVE
   SUSPENDED
   DEACTIVATED
+}
+
+enum EmployeeStatus {
+  PROBATION
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+  ARCHIVED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
 }
 
 // Platform Level Entities
@@ -70,19 +91,22 @@ model Organization {
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
-  users           User[]
-  roles           Role[]
-  branches        Branch[]
-  departments     Department[]
-  teams           Team[]
-  locations       Location[]
-  jobPositions    JobPosition[]
-  jobGrades       JobGrade[]
-  employmentTypes EmploymentType[]
-  workSchedules   WorkSchedule[]
-  holidays        HolidayCalendar[]
-  auditLogs       AuditLog[]
-  sessions        Session[]
+  users             User[]
+  roles             Role[]
+  branches          Branch[]
+  departments       Department[]
+  teams             Team[]
+  locations         Location[]
+  jobPositions      JobPosition[]
+  jobGrades         JobGrade[]
+  employmentTypes   EmploymentType[]
+  workSchedules     WorkSchedule[]
+  holidays          HolidayCalendar[]
+  employees         Employee[]
+  employeeDocuments EmployeeDocument[]
+  employeeHistories EmployeeHistory[]
+  auditLogs         AuditLog[]
+  sessions          Session[]
 
   @@map("organizations")
 }
@@ -102,6 +126,8 @@ model Branch {
   isHeadquarters Boolean      @default(false)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+
+  employees Employee[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -123,6 +149,7 @@ model Department {
 
   teams        Team[]
   jobPositions JobPosition[]
+  employees    Employee[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -139,6 +166,8 @@ model Team {
   description    String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+
+  employees Employee[]
 
   @@index([organizationId])
   @@index([departmentId])
@@ -162,6 +191,8 @@ model Location {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  employees Employee[]
+
   @@unique([organizationId, code])
   @@index([organizationId])
   @@map("locations")
@@ -181,6 +212,7 @@ model JobGrade {
   updatedAt      DateTime     @updatedAt
 
   jobPositions JobPosition[]
+  employees    Employee[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -201,6 +233,8 @@ model JobPosition {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  employees Employee[]
+
   @@unique([organizationId, code])
   @@index([organizationId])
   @@index([departmentId])
@@ -211,10 +245,12 @@ model EmploymentType {
   id             String       @id @default(uuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  name           String       // Full-time, Part-time, Contract, Intern
+  name           String
   code           String
   isContract     Boolean      @default(false)
   createdAt      DateTime     @default(now())
+
+  employees Employee[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -224,15 +260,17 @@ model EmploymentType {
 model WorkSchedule {
   id                   String       @id @default(uuid())
   organizationId       String
-  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name                 String
-  workDays             String[]     // e.g. ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+  workDays             String[]
   startTime            String       @default("08:00")
   endTime              String       @default("17:00")
   breakDurationMinutes Int          @default(60)
   isDefault            Boolean      @default(false)
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
+
+  employees Employee[]
 
   @@index([organizationId])
   @@map("work_schedules")
@@ -250,6 +288,151 @@ model HolidayCalendar {
 
   @@index([organizationId])
   @@map("holiday_calendars")
+}
+
+// Phase 4: Employee Entities
+model Employee {
+  id                   String          @id @default(uuid())
+  organizationId       String
+  organization         Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId               String?         @unique
+  user                 User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  employeeCode         String
+  firstName            String
+  lastName             String
+  middleName           String?
+  email                String
+  phone                String?
+  photoUrl             String?
+  dateOfBirth          DateTime?
+  gender               Gender?
+  maritalStatus        MaritalStatus?
+  nationalId           String?
+  address              String?
+  city                 String?
+  state                String?
+  country              String          @default("Nigeria")
+  
+  // Placements
+  branchId             String?
+  branch               Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  departmentId         String?
+  department           Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  teamId               String?
+  team                 Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  positionId           String?
+  position             JobPosition?    @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  jobGradeId           String?
+  jobGrade             JobGrade?       @relation(fields: [jobGradeId], references: [id], onDelete: SetNull)
+  locationId           String?
+  location             Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  employmentTypeId     String?
+  employmentType       EmploymentType? @relation(fields: [employmentTypeId], references: [id], onDelete: SetNull)
+  workScheduleId       String?
+  workSchedule         WorkSchedule?   @relation(fields: [workScheduleId], references: [id], onDelete: SetNull)
+  managerId            String?
+  manager              Employee?       @relation("EmployeeReporting", fields: [managerId], references: [id], onDelete: SetNull)
+  directReports        Employee[]      @relation("EmployeeReporting")
+
+  // Dates & Status
+  hireDate             DateTime
+  confirmationDate     DateTime?
+  probationEndDate     DateTime?
+  status               EmployeeStatus  @default(PROBATION)
+
+  // Financial & Bank Details
+  basicSalary          Float           @default(0)
+  bankName             String?
+  accountNumber        String?
+  bankCode             String?
+  taxId                String?
+  pfaName              String?
+  rsaNumber            String?
+
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  emergencyContacts    EmergencyContact[]
+  documents            EmployeeDocument[]
+  histories            EmployeeHistory[]
+  statusHistories      EmployeeStatusHistory[]
+
+  @@unique([organizationId, employeeCode])
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([departmentId])
+  @@index([branchId])
+  @@index([status])
+  @@map("employees")
+}
+
+model EmergencyContact {
+  id           String   @id @default(uuid())
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name         String
+  relationship String
+  phone        String
+  email        String?
+  address      String?
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([employeeId])
+  @@map("emergency_contacts")
+}
+
+model EmployeeDocument {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title          String
+  category       String       // e.g. Contract, Certificate, ID, Passport, Tax
+  fileUrl        String
+  fileType       String?
+  fileSize       Int?
+  expiresAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("employee_documents")
+}
+
+model EmployeeHistory {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  eventType      String       // e.g. HIRE, PROMOTION, SALARY_UPDATE, DEPT_TRANSFER, STATUS_CHANGE
+  description    String
+  previousData   Json?
+  newData        Json?
+  effectiveDate  DateTime     @default(now())
+  createdByUserId String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("employee_histories")
+}
+
+model EmployeeStatusHistory {
+  id             String         @id @default(uuid())
+  organizationId String
+  employeeId     String
+  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  previousStatus EmployeeStatus
+  newStatus      EmployeeStatus
+  reason         String?
+  effectiveDate  DateTime       @default(now())
+  createdAt      DateTime       @default(now())
+
+  @@index([employeeId])
+  @@map("employee_status_histories")
 }
 
 model Role {
@@ -311,6 +494,7 @@ model User {
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
+  employee                Employee?
   auditLogs               AuditLog[]
   sessions                Session[]
   refreshTokens           RefreshToken[]

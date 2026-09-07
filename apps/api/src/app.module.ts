@@ -6,6 +6,7 @@ import { RedisModule } from './redis/redis.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { EmployeesModule } from './employees/employees.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { HealthModule } from './health/health.module';
     AuditModule,
     AuthModule,
     OrganizationsModule,
+    EmployeesModule,
     HealthModule,
   ],
 })
