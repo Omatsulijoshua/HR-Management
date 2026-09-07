@@ -182,6 +182,29 @@ enum EvaluationStatus {
   COMPLETED
 }
 
+enum CourseType {
+  INTERNAL_WORKSHOP
+  EXTERNAL_CERTIFICATION
+  ONLINE_SELF_PACED
+  MANDATORY_COMPLIANCE
+}
+
+enum TrainingEnrollmentStatus {
+  REQUESTED
+  ENROLLED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ProficiencyLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+  MASTER
+}
+
 // Platform Level Entities
 model PlatformUser {
   id           String       @id @default(uuid())
@@ -256,6 +279,9 @@ model Organization {
   goals                     Goal[]
   performanceReviewCycles   PerformanceReviewCycle[]
   performanceReviews        PerformanceReview[]
+  trainingCourses           TrainingCourse[]
+  trainingEnrollments       TrainingEnrollment[]
+  skills                    Skill[]
   employeeDocuments         EmployeeDocument[]
   employeeHistories         EmployeeHistory[]
   auditLogs                 AuditLog[]
@@ -388,7 +414,8 @@ model JobPosition {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  employees Employee[]
+  employees         Employee[]
+  skillRequirements SkillRequirement[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -523,6 +550,8 @@ model Employee {
   goals                 Goal[]
   performanceReviews    PerformanceReview[] @relation("EmployeeReviews")
   reviewerEvaluations   PerformanceReview[] @relation("ReviewerEvaluations")
+  trainingEnrollments   TrainingEnrollment[]
+  skills                EmployeeSkill[]
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -1450,4 +1479,93 @@ model Feedback360 {
 
   @@index([performanceReviewId])
   @@map("feedback_360")
+}
+
+// Phase 10: Training, L&D & Skills Inventory Entities
+model TrainingCourse {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  code           String
+  type           CourseType   @default(INTERNAL_WORKSHOP)
+  instructor     String?
+  description    String?
+  durationHours  Int          @default(8)
+  capacity       Int          @default(30)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  enrollments TrainingEnrollment[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("training_courses")
+}
+
+model TrainingEnrollment {
+  id             String                   @id @default(uuid())
+  organizationId String
+  organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  courseId       String
+  course         TrainingCourse           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee                 @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  status         TrainingEnrollmentStatus @default(REQUESTED)
+  completionDate DateTime?
+  certificateUrl String?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("training_enrollments")
+}
+
+model Skill {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  code           String
+  category       String?      @default("General")
+  description    String?
+  createdAt      DateTime     @default(now())
+
+  employeeSkills    EmployeeSkill[]
+  skillRequirements SkillRequirement[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("skills")
+}
+
+model EmployeeSkill {
+  id               String           @id @default(uuid())
+  employeeId       String
+  employee         Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skillId          String
+  skill            Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  proficiencyLevel ProficiencyLevel @default(INTERMEDIATE)
+  ratingScore      Float            @default(3.0)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([employeeId, skillId])
+  @@index([employeeId])
+  @@map("employee_skills")
+}
+
+model SkillRequirement {
+  id                  String           @id @default(uuid())
+  jobPositionId       String
+  jobPosition         JobPosition      @relation(fields: [jobPositionId], references: [id], onDelete: Cascade)
+  skillId             String
+  skill               Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  requiredProficiency ProficiencyLevel @default(ADVANCED)
+  requiredScore       Float            @default(4.0)
+
+  @@unique([jobPositionId, skillId])
+  @@map("skill_requirements")
 }
