@@ -1,4 +1,4 @@
-// Prisma Schema for Multi-Tenant HR Management & HCM SaaS Platform (Phase 5 - Attendance & Leave)
+// Prisma Schema for Multi-Tenant HR Management & HCM SaaS Platform (Phase 6 - Recruitment & Onboarding)
 
 datasource db {
   provider = "postgresql"
@@ -76,6 +76,37 @@ enum LeaveRequestStatus {
   CANCELLED
 }
 
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum ApplicationStage {
+  APPLIED
+  SCREENING
+  SHORTLISTED
+  INTERVIEW
+  ASSESSMENT
+  OFFER
+  HIRED
+  REJECTED
+}
+
+enum OfferStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
 // Platform Level Entities
 model PlatformUser {
   id           String       @id @default(uuid())
@@ -113,29 +144,36 @@ model Organization {
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
-  users                 User[]
-  roles                 Role[]
-  branches              Branch[]
-  departments           Department[]
-  teams                 Team[]
-  locations             Location[]
-  jobPositions          JobPosition[]
-  jobGrades             JobGrade[]
-  employmentTypes       EmploymentType[]
-  workSchedules         WorkSchedule[]
-  holidays              HolidayCalendar[]
-  employees             Employee[]
-  attendanceRecords     AttendanceRecord[]
-  overtimeRecords       OvertimeRecord[]
-  attendanceCorrections AttendanceCorrection[]
-  leaveTypes            LeaveType[]
-  leavePolicies         LeavePolicy[]
-  leaveBalances         LeaveBalance[]
-  leaveRequests         LeaveRequest[]
-  employeeDocuments     EmployeeDocument[]
-  employeeHistories     EmployeeHistory[]
-  auditLogs             AuditLog[]
-  sessions              Session[]
+  users                     User[]
+  roles                     Role[]
+  branches                  Branch[]
+  departments               Department[]
+  teams                     Team[]
+  locations                 Location[]
+  jobPositions              JobPosition[]
+  jobGrades                 JobGrade[]
+  employmentTypes           EmploymentType[]
+  workSchedules             WorkSchedule[]
+  holidays                  HolidayCalendar[]
+  employees                 Employee[]
+  attendanceRecords         AttendanceRecord[]
+  overtimeRecords           OvertimeRecord[]
+  attendanceCorrections     AttendanceCorrection[]
+  leaveTypes                LeaveType[]
+  leavePolicies             LeavePolicy[]
+  leaveBalances             LeaveBalance[]
+  leaveRequests             LeaveRequest[]
+  jobPostings               JobPosting[]
+  candidates                Candidate[]
+  jobApplications           JobApplication[]
+  interviews                Interview[]
+  jobOffers                 JobOffer[]
+  onboardingTemplates       OnboardingTemplate[]
+  employeeOnboardingProcesses EmployeeOnboardingProcess[]
+  employeeDocuments         EmployeeDocument[]
+  employeeHistories         EmployeeHistory[]
+  auditLogs                 AuditLog[]
+  sessions                  Session[]
 
   @@map("organizations")
 }
@@ -179,6 +217,7 @@ model Department {
   teams        Team[]
   jobPositions JobPosition[]
   employees    Employee[]
+  jobPostings  JobPosting[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -220,7 +259,8 @@ model Location {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  employees Employee[]
+  employees   Employee[]
+  jobPostings JobPosting[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -281,6 +321,7 @@ model EmploymentType {
 
   employees     Employee[]
   leavePolicies LeavePolicy[]
+  jobPostings   JobPosting[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -290,7 +331,7 @@ model EmploymentType {
 model WorkSchedule {
   id                   String       @id @default(uuid())
   organizationId       String
-  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name                 String
   workDays             String[]
   startTime            String       @default("08:00")
@@ -387,6 +428,7 @@ model Employee {
   attendanceCorrections AttendanceCorrection[]
   leaveBalances         LeaveBalance[]
   leaveRequests         LeaveRequest[]
+  onboardingProcesses   EmployeeOnboardingProcess[]
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -397,7 +439,182 @@ model Employee {
   @@map("employees")
 }
 
-// Phase 5: Attendance Models
+// Phase 6: Recruitment / ATS Entities
+model JobPosting {
+  id               String          @id @default(uuid())
+  organizationId   String
+  organization     Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title            String
+  code             String
+  departmentId     String?
+  department       Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  locationId       String?
+  location         Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  employmentTypeId String?
+  employmentType   EmploymentType? @relation(fields: [employmentTypeId], references: [id], onDelete: SetNull)
+  minSalary        Float?
+  maxSalary        Float?
+  description      String
+  requirements     String?
+  status           JobStatus       @default(DRAFT)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  applications JobApplication[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("job_postings")
+}
+
+model Candidate {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  firstName      String
+  lastName       String
+  email          String
+  phone          String?
+  resumeUrl      String?
+  skills         String[]
+  source         String?      @default("Direct Application")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  applications JobApplication[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@map("candidates")
+}
+
+model JobApplication {
+  id             String           @id @default(uuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  jobPostingId   String
+  jobPosting     JobPosting       @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  candidateId    String
+  candidate      Candidate        @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  stage          ApplicationStage @default(APPLIED)
+  rating         Int?             @default(0)
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  interviews Interview[]
+  offers     JobOffer[]
+
+  @@unique([jobPostingId, candidateId])
+  @@index([organizationId])
+  @@index([stage])
+  @@map("job_applications")
+}
+
+model Interview {
+  id               String         @id @default(uuid())
+  organizationId   String
+  organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  jobApplicationId String
+  jobApplication   JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+  title            String
+  scheduledAt      DateTime
+  location         String?
+  interviewerName  String?
+  feedback         String?
+  rating           Int?           @default(0)
+  createdAt        DateTime       @default(now())
+
+  @@index([organizationId])
+  @@index([jobApplicationId])
+  @@map("interviews")
+}
+
+model JobOffer {
+  id               String         @id @default(uuid())
+  organizationId   String
+  organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  jobApplicationId String
+  jobApplication   JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+  offeredSalary    Float
+  startDate        DateTime
+  status           OfferStatus    @default(DRAFT)
+  offerLetterUrl   String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([organizationId])
+  @@index([jobApplicationId])
+  @@map("job_offers")
+}
+
+// Phase 6: Onboarding Entities
+model OnboardingTemplate {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  tasks               OnboardingTask[]
+  onboardingProcesses EmployeeOnboardingProcess[]
+
+  @@index([organizationId])
+  @@map("onboarding_templates")
+}
+
+model OnboardingTask {
+  id          String             @id @default(uuid())
+  templateId  String
+  template    OnboardingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  isRequired  Boolean            @default(true)
+  dueDays     Int                @default(7)
+  createdAt   DateTime           @default(now())
+
+  @@index([templateId])
+  @@map("onboarding_tasks")
+}
+
+model EmployeeOnboardingProcess {
+  id                 String             @id @default(uuid())
+  organizationId     String
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId         String
+  employee           Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  templateId         String?
+  template           OnboardingTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  progressPercentage Float              @default(0)
+  isCompleted        Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  tasks EmployeeOnboardingTask[]
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("employee_onboarding_processes")
+}
+
+model EmployeeOnboardingTask {
+  id          String                    @id @default(uuid())
+  processId   String
+  process     EmployeeOnboardingProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  isRequired  Boolean                   @default(true)
+  status      TaskStatus                @default(PENDING)
+  completedAt DateTime?
+  createdAt   DateTime                  @default(now())
+
+  @@index([processId])
+  @@map("employee_onboarding_tasks")
+}
+
+// Phase 5: Attendance & Leave Entities
 model AttendanceRecord {
   id             String           @id @default(uuid())
   organizationId String
@@ -466,12 +683,11 @@ model AttendanceCorrection {
   @@map("attendance_corrections")
 }
 
-// Phase 5: Leave Models
 model LeaveType {
   id               String       @id @default(uuid())
   organizationId   String
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  name             String       // e.g. Annual Leave, Sick Leave, Maternity
+  name             String
   code             String
   defaultDays      Int          @default(20)
   isPaid           Boolean      @default(true)

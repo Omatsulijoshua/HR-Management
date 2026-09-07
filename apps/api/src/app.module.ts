@@ -9,6 +9,8 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { EmployeesModule } from './employees/employees.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { LeaveModule } from './leave/leave.module';
+import { RecruitmentModule } from './recruitment/recruitment.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -31,6 +33,8 @@ import { HealthModule } from './health/health.module';
     EmployeesModule,
     AttendanceModule,
     LeaveModule,
+    RecruitmentModule,
+    OnboardingModule,
     HealthModule,
   ],
 })
