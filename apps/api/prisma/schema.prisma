@@ -293,6 +293,8 @@ model Organization {
   companyAssets             CompanyAsset[]
   assetRequests             AssetRequest[]
   expenseClaims             ExpenseClaim[]
+  companyPolicies           CompanyPolicy[]
+  hseIncidents               HseIncident[]
   employeeDocuments         EmployeeDocument[]
   employeeHistories         EmployeeHistory[]
   auditLogs                 AuditLog[]
@@ -576,6 +578,8 @@ model Employee {
   assetAssignmentHistories AssetAssignmentHistory[]
   requestedAssets       AssetRequest[] @relation("RequestedAssets")
   expenseClaims         ExpenseClaim[] @relation("EmployeeExpenseClaims")
+  policyAcknowledgments PolicyAcknowledgment[]
+  reportedHseIncidents  HseIncident[] @relation("ReportedHseIncidents")
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -1990,6 +1994,87 @@ model ExpenseClaim {
   @@index([employeeId])
   @@map("expense_claims")
 }
+
+// Phase 16: Compliance, Policy Documents & Health & Safety (HSE) Entities
+enum PolicyCategory {
+  CODE_OF_CONDUCT
+  IT_SECURITY
+  WORKPLACE_HEALTH_SAFETY
+  LEAVE_COMPLIANCE
+  GENERAL
+}
+
+enum IncidentSeverity {
+  MINOR
+  MODERATE
+  SEVERE
+  CRITICAL
+}
+
+enum IncidentStatus {
+  REPORTED
+  UNDER_INVESTIGATION
+  RESOLVED
+  CLOSED
+}
+
+model CompanyPolicy {
+  id             String         @id @default(uuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  code           String
+  category       PolicyCategory @default(GENERAL)
+  documentUrl    String?
+  version        String         @default("1.0")
+  isMandatory    Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  acknowledgments PolicyAcknowledgment[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("company_policies")
+}
+
+model PolicyAcknowledgment {
+  id             String        @id @default(uuid())
+  policyId       String
+  policy         CompanyPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  acknowledgedAt DateTime      @default(now())
+  signatureUrl   String?
+
+  @@unique([policyId, employeeId])
+  @@index([employeeId])
+  @@map("policy_acknowledgments")
+}
+
+model HseIncident {
+  id             String           @id @default(uuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  incidentNumber String
+  reportedById   String
+  reportedBy     Employee         @relation("ReportedHseIncidents", fields: [reportedById], references: [id], onDelete: Cascade)
+  title          String
+  location       String?
+  severity       IncidentSeverity @default(MINOR)
+  status         IncidentStatus   @default(REPORTED)
+  description    String
+  reportedAt     DateTime         @default(now())
+  resolvedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([organizationId, incidentNumber])
+  @@index([organizationId])
+  @@index([reportedById])
+  @@map("hse_incidents")
+}
+
 
 
 

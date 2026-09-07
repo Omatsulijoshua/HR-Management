@@ -26,6 +26,7 @@ import { EssModule } from './ess/ess.module';
 import { MssModule } from './mss/mss.module';
 import { AssetsModule } from './assets/assets.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { ComplianceModule } from './compliance/compliance.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -65,6 +66,7 @@ import { HealthModule } from './health/health.module';
     MssModule,
     AssetsModule,
     ExpensesModule,
+    ComplianceModule,
     HealthModule,
   ],
 })
