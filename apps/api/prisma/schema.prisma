@@ -1,4 +1,4 @@
-// Prisma Schema for Multi-Tenant HR Management & HCM SaaS Platform (Phase 2 - Auth & Security)
+// Prisma Schema for Multi-Tenant HR Management & HCM SaaS Platform (Phase 3 - Multi-Tenancy & Org Setup)
 
 datasource db {
   provider = "postgresql"
@@ -58,17 +58,198 @@ model Organization {
   country      String             @default("Nigeria")
   currency     String             @default("NGN")
   timezone     String             @default("Africa/Lagos")
+  address      String?
+  city         String?
+  state        String?
+  zipCode      String?
+  phone        String?
+  email        String?
+  website      String?
   status       OrganizationStatus @default(ACTIVE)
   maxEmployees Int                @default(50)
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
-  users        User[]
-  roles        Role[]
-  auditLogs    AuditLog[]
-  sessions     Session[]
+  users           User[]
+  roles           Role[]
+  branches        Branch[]
+  departments     Department[]
+  teams           Team[]
+  locations       Location[]
+  jobPositions    JobPosition[]
+  jobGrades       JobGrade[]
+  employmentTypes EmploymentType[]
+  workSchedules   WorkSchedule[]
+  holidays        HolidayCalendar[]
+  auditLogs       AuditLog[]
+  sessions        Session[]
 
   @@map("organizations")
+}
+
+model Branch {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  code           String
+  address        String?
+  city           String?
+  state          String?
+  country        String       @default("Nigeria")
+  phone          String?
+  email          String?
+  isHeadquarters Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("branches")
+}
+
+model Department {
+  id                 String       @id @default(uuid())
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name               String
+  code               String
+  description        String?
+  parentDepartmentId String?
+  parentDepartment   Department?  @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id], onDelete: SetNull)
+  subDepartments     Department[] @relation("DepartmentHierarchy")
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  teams        Team[]
+  jobPositions JobPosition[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("departments")
+}
+
+model Team {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  departmentId   String
+  department     Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([departmentId])
+  @@map("teams")
+}
+
+model Location {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  code           String
+  address        String
+  city           String
+  state          String?
+  country        String       @default("Nigeria")
+  timezone       String       @default("Africa/Lagos")
+  latitude       Float?
+  longitude      Float?
+  radiusMeters   Int          @default(100)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("locations")
+}
+
+model JobGrade {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  code           String
+  level          Int          @default(1)
+  minSalary      Float?
+  maxSalary      Float?
+  currency       String       @default("NGN")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  jobPositions JobPosition[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("job_grades")
+}
+
+model JobPosition {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  departmentId   String
+  department     Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  jobGradeId     String?
+  jobGrade       JobGrade?    @relation(fields: [jobGradeId], references: [id], onDelete: SetNull)
+  title          String
+  code           String
+  description    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([departmentId])
+  @@map("job_positions")
+}
+
+model EmploymentType {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String       // Full-time, Part-time, Contract, Intern
+  code           String
+  isContract     Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("employment_types")
+}
+
+model WorkSchedule {
+  id                   String       @id @default(uuid())
+  organizationId       String
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                 String
+  workDays             String[]     // e.g. ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+  startTime            String       @default("08:00")
+  endTime              String       @default("17:00")
+  breakDurationMinutes Int          @default(60)
+  isDefault            Boolean      @default(false)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@map("work_schedules")
+}
+
+model HolidayCalendar {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  date           DateTime
+  isRecurring    Boolean      @default(true)
+  description    String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@map("holiday_calendars")
 }
 
 model Role {
@@ -90,8 +271,8 @@ model Role {
 
 model Permission {
   id          String   @id @default(uuid())
-  code        String   @unique // e.g. "employees.view", "payroll.process"
-  module      String   // e.g. "employees", "payroll", "leave"
+  code        String   @unique
+  module      String
   description String?
   createdAt   DateTime @default(now())
 
@@ -130,12 +311,12 @@ model User {
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
-  auditLogs              AuditLog[]
-  sessions               Session[]
-  refreshTokens          RefreshToken[]
-  passwordResetTokens    PasswordResetToken[]
+  auditLogs               AuditLog[]
+  sessions                Session[]
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
-  mfaConfiguration       MFAConfiguration?
+  mfaConfiguration        MFAConfiguration?
 
   @@unique([organizationId, email])
   @@index([organizationId])
