@@ -295,6 +295,10 @@ model Organization {
   expenseClaims             ExpenseClaim[]
   companyPolicies           CompanyPolicy[]
   hseIncidents               HseIncident[]
+  currencies                Currency[]
+  exchangeRates             ExchangeRate[]
+  countryTaxConfigs         CountryTaxConfig[]
+  workPermits               WorkPermit[]
   employeeDocuments         EmployeeDocument[]
   employeeHistories         EmployeeHistory[]
   auditLogs                 AuditLog[]
@@ -580,6 +584,7 @@ model Employee {
   expenseClaims         ExpenseClaim[] @relation("EmployeeExpenseClaims")
   policyAcknowledgments PolicyAcknowledgment[]
   reportedHseIncidents  HseIncident[] @relation("ReportedHseIncidents")
+  workPermits           WorkPermit[]
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -2074,6 +2079,81 @@ model HseIncident {
   @@index([reportedById])
   @@map("hse_incidents")
 }
+
+// Phase 18: Global Workforce, Multi-Currency & Multi-Country Compliance Engine Entities
+enum PermitStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  RENEWAL_PENDING
+}
+
+model Currency {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  code           String
+  symbol         String
+  name           String
+  isBaseCurrency Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("currencies")
+}
+
+model ExchangeRate {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fromCurrency   String
+  toCurrency     String
+  rate           Float
+  effectiveDate  DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@map("exchange_rates")
+}
+
+model CountryTaxConfig {
+  id               String       @id @default(uuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  countryCode      String
+  countryName      String
+  taxAuthorityName String
+  defaultTaxRate   Float        @default(0)
+  pensionRate      Float        @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([organizationId, countryCode])
+  @@index([organizationId])
+  @@map("country_tax_configs")
+}
+
+model WorkPermit {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  permitType     String
+  permitNumber   String
+  issuingCountry String
+  expiryDate     DateTime
+  status         PermitStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@map("work_permits")
+}
+
 
 
 

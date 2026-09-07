@@ -28,6 +28,7 @@ import { AssetsModule } from './assets/assets.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { GlobalModule } from './global/global.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -69,6 +70,7 @@ import { HealthModule } from './health/health.module';
     ExpensesModule,
     ComplianceModule,
     AnalyticsModule,
+    GlobalModule,
     HealthModule,
   ],
 })
