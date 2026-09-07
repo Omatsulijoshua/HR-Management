@@ -107,6 +107,29 @@ enum TaskStatus {
   COMPLETED
 }
 
+enum SalaryComponentType {
+  EARNING
+  DEDUCTION
+}
+
+enum CalculationType {
+  FIXED
+  PERCENTAGE_OF_BASIC
+}
+
+enum PayrollFrequency {
+  MONTHLY
+  BIWEEKLY
+  WEEKLY
+}
+
+enum PayrollRunStatus {
+  DRAFT
+  PROCESSING
+  APPROVED
+  DISBURSED
+}
+
 // Platform Level Entities
 model PlatformUser {
   id           String       @id @default(uuid())
@@ -170,6 +193,10 @@ model Organization {
   jobOffers                 JobOffer[]
   onboardingTemplates       OnboardingTemplate[]
   employeeOnboardingProcesses EmployeeOnboardingProcess[]
+  salaryComponents          SalaryComponent[]
+  salaryStructures          SalaryStructure[]
+  payrollPeriods            PayrollPeriod[]
+  payrollRuns               PayrollRun[]
   employeeDocuments         EmployeeDocument[]
   employeeHistories         EmployeeHistory[]
   auditLogs                 AuditLog[]
@@ -429,6 +456,8 @@ model Employee {
   leaveBalances         LeaveBalance[]
   leaveRequests         LeaveRequest[]
   onboardingProcesses   EmployeeOnboardingProcess[]
+  salaryAssignments     EmployeeSalaryAssignment[]
+  payrollEntries        PayrollEntry[]
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, email])
@@ -1006,4 +1035,156 @@ model SystemHealth {
   createdAt DateTime @default(now())
 
   @@map("system_health")
+}
+
+// Phase 7: Payroll Engine Entities
+model SalaryComponent {
+  id              String              @id @default(uuid())
+  organizationId  String
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name            String
+  code            String
+  type            SalaryComponentType
+  calculationType CalculationType     @default(FIXED)
+  defaultAmount   Float               @default(0)
+  percentageValue Float?              @default(0)
+  isTaxable       Boolean             @default(true)
+  isStatutory     Boolean             @default(false)
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  structureComponents SalaryStructureComponent[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("salary_components")
+}
+
+model SalaryStructure {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  code           String
+  description    String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  components  SalaryStructureComponent[]
+  assignments EmployeeSalaryAssignment[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("salary_structures")
+}
+
+model SalaryStructureComponent {
+  id                String          @id @default(uuid())
+  salaryStructureId String
+  salaryStructure   SalaryStructure @relation(fields: [salaryStructureId], references: [id], onDelete: Cascade)
+  salaryComponentId String
+  salaryComponent   SalaryComponent @relation(fields: [salaryComponentId], references: [id], onDelete: Cascade)
+  amount            Float           @default(0)
+
+  @@unique([salaryStructureId, salaryComponentId])
+  @@map("salary_structure_components")
+}
+
+model EmployeeSalaryAssignment {
+  id                String          @id @default(uuid())
+  employeeId        String
+  employee          Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  salaryStructureId String
+  salaryStructure   SalaryStructure @relation(fields: [salaryStructureId], references: [id], onDelete: Cascade)
+  effectiveFrom     DateTime
+  effectiveTo       DateTime?
+  baseSalary        Float           @default(0)
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+
+  @@index([employeeId])
+  @@index([salaryStructureId])
+  @@map("employee_salary_assignments")
+}
+
+model PayrollPeriod {
+  id             String           @id @default(uuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  frequency      PayrollFrequency @default(MONTHLY)
+  startDate      DateTime
+  endDate        DateTime
+  payDate        DateTime
+  isClosed       Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  payrollRuns PayrollRun[]
+
+  @@index([organizationId])
+  @@map("payroll_periods")
+}
+
+model PayrollRun {
+  id              String           @id @default(uuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  periodId        String
+  period          PayrollPeriod    @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  status          PayrollRunStatus @default(DRAFT)
+  totalEmployees  Int              @default(0)
+  totalGross      Float            @default(0)
+  totalDeductions Float            @default(0)
+  totalTax        Float            @default(0)
+  totalPension    Float            @default(0)
+  totalNet        Float            @default(0)
+  processedAt     DateTime?
+  approvedAt      DateTime?
+  disbursedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  entries PayrollEntry[]
+
+  @@index([organizationId])
+  @@index([periodId])
+  @@map("payroll_runs")
+}
+
+model PayrollEntry {
+  id               String       @id @default(uuid())
+  payrollRunId     String
+  payrollRun       PayrollRun   @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  basicSalary      Float        @default(0)
+  totalAllowances  Float        @default(0)
+  grossSalary      Float        @default(0)
+  taxDeduction     Float        @default(0)
+  pensionDeduction Float        @default(0)
+  otherDeductions  Float        @default(0)
+  totalDeductions  Float        @default(0)
+  netPay           Float        @default(0)
+  createdAt        DateTime     @default(now())
+
+  lineItems PayslipLineItem[]
+
+  @@unique([payrollRunId, employeeId])
+  @@index([employeeId])
+  @@map("payroll_entries")
+}
+
+model PayslipLineItem {
+  id             String              @id @default(uuid())
+  payrollEntryId String
+  payrollEntry   PayrollEntry        @relation(fields: [payrollEntryId], references: [id], onDelete: Cascade)
+  componentName  String
+  type           SalaryComponentType
+  amount         Float
+
+  @@index([payrollEntryId])
+  @@map("payslip_line_items")
 }
