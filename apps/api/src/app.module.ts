@@ -20,6 +20,8 @@ import { SkillsModule } from './skills/skills.module';
 import { CareerModule } from './career/career.module';
 import { SuccessionModule } from './succession/succession.module';
 import { MobilityModule } from './mobility/mobility.module';
+import { SurveysModule } from './surveys/surveys.module';
+import { FeedbackModule } from './feedback/feedback.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -53,6 +55,8 @@ import { HealthModule } from './health/health.module';
     CareerModule,
     SuccessionModule,
     MobilityModule,
+    SurveysModule,
+    FeedbackModule,
     HealthModule,
   ],
 })

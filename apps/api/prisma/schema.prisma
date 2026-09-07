@@ -285,6 +285,9 @@ model Organization {
   careerPaths               CareerPath[]
   successionPlans           SuccessionPlan[]
   mobilityRequests          InternalMobilityRequest[]
+  surveys                   EngagementSurvey[]
+  surveyResponses           SurveyResponse[]
+  anonymousFeedbacks        AnonymousFeedback[]
   employeeDocuments         EmployeeDocument[]
   employeeHistories         EmployeeHistory[]
   auditLogs                 AuditLog[]
@@ -1678,4 +1681,103 @@ model InternalMobilityRequest {
   @@index([employeeId])
   @@map("internal_mobility_requests")
 }
+
+// Phase 12: Employee Engagement, Surveys & Pulse Management Entities
+enum SurveyType {
+  PULSE
+  ENPS
+  CUSTOM
+  ANNUAL_SATISFACTION
+}
+
+enum SurveyStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+enum QuestionType {
+  RATING_1_5
+  ENPS_0_10
+  MULTIPLE_CHOICE
+  TEXT
+}
+
+enum FeedbackStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+}
+
+model EngagementSurvey {
+  id                 String       @id @default(uuid())
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title              String
+  code               String
+  description        String?
+  type               SurveyType   @default(PULSE)
+  status             SurveyStatus @default(DRAFT)
+  targetDepartmentId String?
+  startDate          DateTime?
+  endDate            DateTime?
+  eNpsScore          Float?       @default(0)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  questions SurveyQuestion[]
+  responses SurveyResponse[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("engagement_surveys")
+}
+
+model SurveyQuestion {
+  id           String           @id @default(uuid())
+  surveyId     String
+  survey       EngagementSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  questionText String
+  type         QuestionType     @default(RATING_1_5)
+  options      Json?
+  orderIndex   Int              @default(1)
+  isRequired   Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+
+  @@index([surveyId])
+  @@map("survey_questions")
+}
+
+model SurveyResponse {
+  id             String           @id @default(uuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  surveyId       String
+  survey         EngagementSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  employeeId     String?
+  answers        Json
+  score          Float?           @default(0)
+  submittedAt    DateTime         @default(now())
+
+  @@index([organizationId])
+  @@index([surveyId])
+  @@map("survey_responses")
+}
+
+model AnonymousFeedback {
+  id             String         @id @default(uuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category       String         @default("General Suggestion")
+  message        String
+  status         FeedbackStatus @default(PENDING)
+  responseNote   String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([organizationId])
+  @@map("anonymous_feedbacks")
+}
+
 
